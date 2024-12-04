@@ -5,6 +5,11 @@
 #include <chrono>
 #include <vector>
 #include <string>
+#include <ranges>
+#include <string_view>
+
+#include <ctre.hpp>
+#include <ctre/range.hpp>
 
 #include "Input.hpp"
 
@@ -56,7 +61,7 @@ bool safe_report(std::vector<int> report)
     return safe;
 }
 
-void day2() {
+void day2() { // TODO add Part 1 back
     auto reports = Input::GetStringData("infile.txt");
     std::uint64_t safe_reports{0};
     auto begin = std::chrono::steady_clock::now();
@@ -90,6 +95,110 @@ void day2() {
     std::cout << safe_reports << " after " << duration;
 }
 
-int main() {
-
+std::uint64_t day3_1(const std::string& s) {
+    using namespace ctre::literals;
+    std::uint64_t result{0};
+    auto start = s.cbegin();
+    while (auto m = ctre::search<"mul\\(([0-9]+),([0-9]+)\\)">(start, s.cend())) {
+        result += m.get<1>().to_number() * m.get<2>().to_number();
+        start = m.get<0>().end();
+    }
+    return result;
 }
+
+std::uint64_t day3_2(const std::string& s) {
+    bool enabled{true};
+    std::uint64_t result{0};
+    for (auto match : ctre::search_all<"do\\(\\)|don't\\(\\)|mul\\(([0-9]+),([0-9]+)\\)">(s)) {
+        std::string_view view = match.get<0>();
+        if (view.starts_with("mul")) {
+            if (enabled) {
+                result += match.get<1>().to_number() * match.get<2>().to_number();
+            }
+        }
+        if (view.starts_with("don'")) {
+            enabled = false;
+        }
+        if (view.starts_with("do(")) {
+            enabled = true;
+        }
+    }
+    return result;
+}
+
+std::uint64_t day4_1(const std::vector<std::string>& grid) {
+    const auto rows = grid.size();
+    const auto cols = grid[0].size();
+    const std::string XMAS = "XMAS";
+
+    const std::vector<std::pair<int, int>> directions = {
+        {0, 1}, {0, -1},  // right, left
+        {1, 0}, {-1, 0},  // up, down
+        {1, 1}, {-1, -1}, // diagonal down-right, diagonal up-left
+        {1, -1}, {-1, 1} // diagonal down-left, diagonal up-right
+    };
+
+    auto isXMASInDirection = [&](const std::size_t r, const std::size_t c, const int dr, const int dc) -> bool {
+        for (std::size_t i = 0; i < XMAS.size(); ++i) {
+            const auto next_r = r + i * dr;
+            const auto next_c = c + i * dc;
+            if (next_r >= rows || next_c >= cols || grid[next_r][next_c] != XMAS[i]) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    std::size_t count = 0;
+    for (std::size_t r = 0; r < rows; ++r) {
+        for (std::size_t c = 0; c < cols; ++c) {
+            if (grid[r][c] == XMAS[0]) {
+                for (const auto& [dr, dc] : directions) {
+                    count += isXMASInDirection(r, c, dr, dc);
+                }
+            }
+        }
+    }
+    return count;
+}
+
+std::uint64_t day4_2(const std::vector<std::string>& grid) {
+    const auto rows = grid.size();
+    const auto cols = grid[0].size();
+
+    const std::string MAS{"MAS"};
+    const std::string SAM{"SAM"};
+    auto isMASCross = [&](const std::size_t r, const std::size_t c) -> bool {
+        const std::vector<std::pair<int, int>> diag1 = {{-1, -1}, {0, 0}, {1, 1}}; // Top-left to bottom-right
+        const std::vector<std::pair<int, int>> diag2 = {{-1, 1}, {0, 0}, {1, -1}}; // Top-right to bottom-left
+
+        auto matchesDiagonal = [&](const std::vector<std::pair<int, int>>& diagonal, const std::string& pattern) -> bool {
+            for (std::size_t i = 0; i < pattern.size(); ++i) {
+                const int nr = r + diagonal[i].first;
+                const int nc = c + diagonal[i].second;
+                if (nr < 0 || nr >= static_cast<int>(rows) || nc < 0 || nc >= static_cast<int>(cols) || grid[nr][nc] != pattern[i]) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        return (matchesDiagonal(diag1, MAS) && matchesDiagonal(diag2, SAM)) ||
+               (matchesDiagonal(diag1, MAS) && matchesDiagonal(diag2, MAS)) ||
+               (matchesDiagonal(diag1, SAM) && matchesDiagonal(diag2, SAM)) ||
+               (matchesDiagonal(diag1, SAM) && matchesDiagonal(diag2, MAS));
+    };
+
+    std::size_t count = 0;
+    for (std::size_t r = 1; r < rows - 1; ++r) {
+        for (std::size_t c = 1; c < cols - 1; ++c) {
+            count += isMASCross(r,c);
+        }
+    }
+    return count;
+}
+
+int main() {
+    auto map = Input::GetStringData("infile.txt");
+    std::cout << day4_2(map) << '\n';
+};
