@@ -166,27 +166,32 @@ std::uint64_t day4_2(const std::vector<std::string>& grid) {
     const auto rows = grid.size();
     const auto cols = grid[0].size();
 
-    const std::string MAS{"MAS"};
-    const std::string SAM{"SAM"};
     auto isMASCross = [&](const std::size_t r, const std::size_t c) -> bool {
-        const std::vector<std::pair<int, int>> diag1 = {{-1, -1}, {0, 0}, {1, 1}}; // Top-left to bottom-right
-        const std::vector<std::pair<int, int>> diag2 = {{-1, 1}, {0, 0}, {1, -1}}; // Top-right to bottom-left
+        constexpr std::array<std::pair<int, int>, 3> DIAG1 = {{{-1, -1}, {0, 0}, {1, 1}}}; // Left, Center, Right
+        constexpr std::array<std::pair<int, int>, 3> DIAG2 = {{{-1, 1}, {0, 0}, {1, -1}}}; // Right, Center, Left
+        constexpr std::string_view MAS = "MAS";
+        constexpr std::string_view SAM = "SAM";
 
-        auto matchesDiagonal = [&](const std::vector<std::pair<int, int>>& diagonal, const std::string& pattern) -> bool {
+        auto matchesDiagonal = [&](const std::array<std::pair<int, int>, 3>& diagonal, std::string_view pattern) -> bool
+        {
             for (std::size_t i = 0; i < pattern.size(); ++i) {
-                const int nr = r + diagonal[i].first;
-                const int nc = c + diagonal[i].second;
-                if (nr < 0 || nr >= static_cast<int>(rows) || nc < 0 || nc >= static_cast<int>(cols) || grid[nr][nc] != pattern[i]) {
-                    return false;
-                }
+                const int next_r = r + diagonal[i].first;
+                const int next_c = c + diagonal[i].second;
+                if (next_r < 0 || next_r >= static_cast<int>(rows) ||
+                    next_c < 0 || next_c >= static_cast<int>(cols) ||
+                    grid[next_r][next_c] != pattern[i])
+                    {
+                        return false;
+                    }
             }
             return true;
         };
 
-        return (matchesDiagonal(diag1, MAS) && matchesDiagonal(diag2, SAM)) ||
-               (matchesDiagonal(diag1, MAS) && matchesDiagonal(diag2, MAS)) ||
-               (matchesDiagonal(diag1, SAM) && matchesDiagonal(diag2, SAM)) ||
-               (matchesDiagonal(diag1, SAM) && matchesDiagonal(diag2, MAS));
+        return
+            (matchesDiagonal(DIAG1, MAS) && matchesDiagonal(DIAG2, SAM)) ||
+            (matchesDiagonal(DIAG1, MAS) && matchesDiagonal(DIAG2, MAS)) ||
+            (matchesDiagonal(DIAG1, SAM) && matchesDiagonal(DIAG2, SAM)) ||
+            (matchesDiagonal(DIAG1, SAM) && matchesDiagonal(DIAG2, MAS));
     };
 
     std::size_t count = 0;
