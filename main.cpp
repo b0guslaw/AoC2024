@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
 #include <chrono>
 #include <vector>
 #include <string>
@@ -9,7 +10,7 @@
 #include <string_view>
 
 #include <ctre.hpp>
-#include <ctre/range.hpp>
+#include <set>
 
 #include "Input.hpp"
 
@@ -203,7 +204,72 @@ std::uint64_t day4_2(const std::vector<std::string>& grid) {
     return count;
 }
 
+std::uint64_t day5_1(const std::vector<std::string>& pages) {
+    auto begin = std::chrono::steady_clock::now();
+    std::uint64_t total{0};
+
+    // First, parse the rules
+    std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> rules;
+    std::size_t page_offset{0};
+    for (const auto& page : pages) {
+        if (page.empty()) {
+            break; // Finished reading the rules
+        }
+        std::string_view sv(page);
+        std::uint32_t page_number, page_rule;
+        std::from_chars(sv.data(), sv.data() + 2, page_number);
+        std::from_chars(sv.data() + 3, sv.data() + sv.size(), page_rule);
+        if (rules.contains(page_number)) {
+            rules[page_number].push_back(page_rule);
+        } else {
+            rules[page_number] = {page_rule};
+        }
+        ++page_offset;
+    }
+
+    auto parse_line = [](const std::string& input) -> std::vector<int> {
+        std::vector<int> result;
+        std::stringstream ss(input);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            result.push_back(std::stoi(token));
+        }
+        return result;
+    };
+
+    // Now, check the updates
+    std::unordered_set<std::uint32_t> current_page;
+    using std::operator""sv;
+    for (std::size_t i = page_offset + 1; i < pages.size(); ++i) {
+        bool legal{true};
+        current_page.clear();
+        auto split = parse_line(pages[i]);
+        for (const auto& page : split) {
+            if (!rules.contains(page)) {
+                current_page.insert(page);
+                continue; // Special case: Page has no ordering rules
+            }
+            const auto& preconditions = rules.at(page);
+            for (auto& update : preconditions) {
+                if (current_page.contains(update)) {
+                    legal = false;
+                    break;
+                }
+            }
+            if (legal) { current_page.insert(page); }
+        }
+        if (legal) {
+            total += split[split.size()/2];
+        }
+    }
+
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - begin);
+    std::cout << total << ' ' << total << " took " << duration <<"\n";
+    return total;
+}
+
 int main() {
-    auto map = Input::GetStringData("infile.txt");
-    std::cout << day4_2(map) << '\n';
-};
+    auto pages = Input::GetStringData("infile.txt");
+    std::cout << day5_1(pages);
+}
