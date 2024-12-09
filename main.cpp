@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
 #include <unordered_map>
 #include <unordered_set>
 #include <chrono>
@@ -8,10 +9,10 @@
 #include <string>
 #include <ranges>
 #include <string_view>
+#include <set>
 
 #include <ctre.hpp>
-#include <map>
-#include <set>
+
 
 #include "Input.hpp"
 
@@ -334,7 +335,64 @@ std::uint64_t day6(std::vector<std::string> map) {
     return loopSum;
 }
 
+auto concat(std::uint64_t a, std::uint64_t b) -> std::uint64_t
+{
+    if (b == 0) return a;
+    int pow = std::pow(10, std::floor(std::log10(b) + 1));
+    return a * pow + b;
+};
+
+bool can_reach_target(std::uint64_t target, const std::vector<std::uint64_t>& numbers, size_t index) {
+    if (index == 0) return target == numbers[0];
+    if (can_reach_target(target - numbers[index], numbers, index - 1)) return true;
+    if (target % numbers[index] == 0 && can_reach_target(target / numbers[index], numbers, index - 1))
+    {
+        return true;
+    }
+    return false;
+}
+
+bool can_reach_with_concat(std::uint64_t target, const std::vector<std::uint64_t>& numbers, size_t index, std::uint64_t curr) {
+    if (index == numbers.size()) return curr == target;
+    if (can_reach_with_concat(target, numbers, index + 1, curr + numbers[index])) return true;
+    if (can_reach_with_concat(target, numbers, index + 1, curr * numbers[index])) return true;
+    if (can_reach_with_concat(target, numbers, index + 1, concat(curr, numbers[index]))) return true;
+    return false;
+}
+
+std::uint64_t day7(const std::vector<std::string>& input) {
+    auto parse_line = [](const std::string& input, char delim) -> std::pair<std::uint64_t, std::vector<std::uint64_t>> {
+        size_t colon_pos = input.find(':');
+        std::uint64_t target = std::stoull(input.substr(0, colon_pos));
+        std::vector<std::uint64_t> operands;
+        std::istringstream operand_stream(input.substr(colon_pos + 1));
+        std::uint64_t num;
+        while (operand_stream >> num) {
+            operands.push_back(num);
+        }
+        return {target, operands};
+    };
+
+    std::uint64_t total1{0};
+    for (auto line : input) {
+        auto equation = parse_line(line, ' ');
+        if (can_reach_target(equation.first, equation.second, equation.second.size() - 1)) {
+            total1 += equation.first;
+        }
+    }
+
+    std::uint64_t total{0};
+    for (auto line : input) {
+        auto equation = parse_line(line, ' ');
+        if (can_reach_with_concat(equation.first, equation.second, 1, equation.second.front())) {
+            total += equation.first;
+        }
+    }
+
+    return total;
+}
+
 int main() {
-    auto map = Input::GetStringData("infile.txt");
-    std::cout << day6(map);
+    auto input = Input::GetStringData("infile.txt");
+    std::cout << day7(input);
 }
