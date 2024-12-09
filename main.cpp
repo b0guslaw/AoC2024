@@ -206,10 +206,8 @@ std::uint64_t day4_2(const std::vector<std::string>& grid) {
 
 std::uint64_t day5_1(const std::vector<std::string>& pages) {
     auto begin = std::chrono::steady_clock::now();
-    std::uint64_t total{0};
-
     // First, parse the rules
-    std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> rules;
+    std::unordered_map<std::uint32_t, std::set<std::uint32_t>> rules;
     std::size_t page_offset{0};
     for (const auto& page : pages) {
         if (page.empty()) {
@@ -220,7 +218,7 @@ std::uint64_t day5_1(const std::vector<std::string>& pages) {
         std::from_chars(sv.data(), sv.data() + 2, page_number);
         std::from_chars(sv.data() + 3, sv.data() + sv.size(), page_rule);
         if (rules.contains(page_number)) {
-            rules[page_number].push_back(page_rule);
+            rules[page_number].insert(page_rule);
         } else {
             rules[page_number] = {page_rule};
         }
@@ -237,29 +235,18 @@ std::uint64_t day5_1(const std::vector<std::string>& pages) {
         return result;
     };
 
+    auto sorting = [&](auto a, auto b){ return rules.at(a).contains(b); };
+
     // Now, check the updates
-    std::unordered_set<std::uint32_t> current_page;
-    using std::operator""sv;
+    std::uint64_t total{0};
+    std::uint64_t total2{0};
     for (std::size_t i = page_offset + 1; i < pages.size(); ++i) {
-        bool legal{true};
-        current_page.clear();
         auto split = parse_line(pages[i]);
-        for (const auto& page : split) {
-            if (!rules.contains(page)) {
-                current_page.insert(page);
-                continue; // Special case: Page has no ordering rules
-            }
-            const auto& preconditions = rules.at(page);
-            for (auto& update : preconditions) {
-                if (current_page.contains(update)) {
-                    legal = false;
-                    break;
-                }
-            }
-            if (legal) { current_page.insert(page); }
-        }
-        if (legal) {
-            total += split[split.size()/2];
+        if (!std::is_sorted(split.begin(), split.end(), sorting)) {
+            total += split[split.size()/2]; // Part 1
+        } else {
+            std::sort(split.begin(), split.end(), sorting);
+            total2 += split[split.size()/2]; // Part 2
         }
     }
 
