@@ -10,6 +10,7 @@
 #include <string_view>
 
 #include <ctre.hpp>
+#include <map>
 #include <set>
 
 #include "Input.hpp"
@@ -204,7 +205,7 @@ std::uint64_t day4_2(const std::vector<std::string>& grid) {
     return count;
 }
 
-std::uint64_t day5_1(const std::vector<std::string>& pages) {
+std::uint64_t day5(const std::vector<std::string>& pages) { // Todo split Part 1 and 2
     auto begin = std::chrono::steady_clock::now();
     // First, parse the rules
     std::unordered_map<std::uint32_t, std::set<std::uint32_t>> rules;
@@ -256,7 +257,84 @@ std::uint64_t day5_1(const std::vector<std::string>& pages) {
     return total;
 }
 
+std::uint64_t day6(std::vector<std::string> map) {
+
+    constexpr int directions_sz{4};
+    std::array<std::pair<int, int>, directions_sz> directions = {{{-1, 0},  // Up
+                                                                {0, 1},        // Right
+                                                                {1, 0},        // Down
+                                                                {0, -1}}};     // Left
+
+    std::set<std::pair<int, int>> obstacles;
+    std::pair<int, int> position;
+    int compass{0}; // 0 - Up, 1 - Right, etc...
+    std::pair<int, int> direction = directions[compass];
+    for (std::size_t i = 0; i < map.size(); ++i) {
+        for (std::size_t j = 0; j < map[0].size(); ++j) {
+            if (map[i][j] == '#') { obstacles.insert(std::make_pair(i, j)); }
+            if (map[i][j] == '^') { position = std::make_pair(i, j); }
+        }
+    }
+
+    auto pathBlocked = [&](const auto& pos, const auto& dir) -> bool
+    {
+        return obstacles.contains({pos.first + dir.first, pos.second + dir.second});
+    };
+
+    auto outOfBounds = [&](const auto& pos) -> bool
+    {
+        return  pos.first < 0 || pos.second < 0 ||
+                pos.first >= map.size() || pos.second >= map[0].size();
+    };
+
+    std::set<std::pair<int, int>> positions;
+
+    using State = std::tuple<int, int, int, int>;
+    std::uint64_t loopSum{0};
+    auto run_sim = [&]() -> bool
+    {
+        std::set<State> location_states;
+        while (true) {
+            State state = std::make_tuple(position.first, position.second, direction.first, direction.second);
+            if (location_states.contains(state)) {
+                return true;
+            }
+            location_states.insert(state);
+
+            // positions.insert(position); for part 1
+
+            if (pathBlocked(position, direction)) {
+                direction = directions[++compass % directions_sz];
+            } else {
+                position.first += direction.first;
+                position.second += direction.second;
+            }
+            if (outOfBounds(position)) {
+                return false;
+            }
+        }
+    };
+
+    auto start = position;
+    auto init_direction = direction;
+    auto init_compass = compass;
+    for (std::size_t i = 0; i < map.size(); ++i) {
+        for (std::size_t j = 0; j < map[0].size(); ++j) {
+            if (map[i][j] == '.') {
+                obstacles.insert({i, j});
+                loopSum += run_sim();
+                position = start;
+                direction = init_direction;
+                compass = init_compass;
+                obstacles.erase({i, j});
+            }
+        }
+    }
+
+    return loopSum;
+}
+
 int main() {
-    auto pages = Input::GetStringData("infile.txt");
-    std::cout << day5_1(pages);
+    auto map = Input::GetStringData("infile.txt");
+    std::cout << day6(map);
 }
